@@ -141,6 +141,74 @@ function createServer(env: Env) {
   );
 
   server.registerTool(
+    "lookup_slack_user",
+    {
+      description:
+        "Look up a Slack user by name or email. Returns their user ID and, if possible, the DM channel ID you can use to message them.",
+      inputSchema: z.object({
+        query: z.string().describe("Name, display name, real name, or email to search for"),
+      }),
+    },
+    async ({ query }) => {
+      try {
+        const users: any = await slackFetch(env.SLACK_BOT_TOKEN, "users.list", {
+          limit: "200",
+        });
+
+        if (!users.ok || !users.members) {
+          return {
+            content: [{ type: "text", text: `Failed to list users: ${users.error || "unknown error"}` }],
+          };
+        }
+
+        const q = query.toLowerCase();
+        const matches = users.members.filter((m: any) => {
+          if (m.deleted || m.is_bot) return false;
+          const name = (m.name || "").toLowerCase();
+          const real = (m.real_name || "").toLowerCase();
+          const display = (m.profile?.display_name || "").toLowerCase();
+          const email = (m.profile?.email || "").toLowerCase();
+          return name.includes(q) || real.includes(q) || display.includes(q) || email.includes(q);
+        });
+
+        if (matches.length === 0) {
+          return {
+            content: [{ type: "text", text: `No users found matching "${query}".` }],
+          };
+        }
+
+        const results: string[] = [];
+        for (const user of matches.slice(0, 5)) {
+          let dmId = "";
+          try {
+            const im: any = await slackFetch(env.SLACK_BOT_TOKEN, "conversations.open", {
+              users: user.id,
+            }, true);
+            if (im.ok && im.channel?.id) dmId = im.channel.id;
+          } catch (_) {}
+
+          results.push(
+            `${user.real_name || user.name} (@${user.name}) — User ID: ${user.id}${dmId ? ` — DM ID: ${dmId}` : ""}`
+          );
+        }
+
+        return {
+          content: [{ type: "text", text: `Found ${matches.length} user(s):\n\n${results.join("\n")}` }],
+        };
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error looking up user: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.registerTool(
     "send_slack_message",
     {
       description:
