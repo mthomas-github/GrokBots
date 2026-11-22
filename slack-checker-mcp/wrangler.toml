@@ -1,0 +1,12 @@
+name = "slack-checker-mcp"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Non-secret vars go here if needed
+
+# Secrets (set via `wrangler secret put`):
+# MCP_API_KEY     - Bearer token required to call this MCP server
+# SLACK_BOT_TOKEN - Slack bot token (xoxb-...) with im:history, im:read, channels:history, app_mentions:read, users:read, search:read
+# SLACK_USER_ID   - Your Slack user ID (e.g. U01234567) so we can detect mentions of you
