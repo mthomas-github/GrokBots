@@ -13,16 +13,28 @@ function unauthorized(): Response {
   return new Response("Unauthorized", { status: 401 });
 }
 
-async function slackFetch(token: string, method: string, params: Record<string, string> = {}) {
+async function slackFetch(
+  token: string,
+  method: string,
+  params: Record<string, string> = {},
+  useBody = false
+) {
   const url = new URL(`https://slack.com/api/${method}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-
-  const res = await fetch(url.toString(), {
+  const options: RequestInit = {
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-  });
+  };
+
+  if (useBody) {
+    options.method = "POST";
+    options.body = JSON.stringify(params);
+  } else {
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  }
+
+  const res = await fetch(url.toString(), options);
   return res.json();
 }
 
@@ -150,7 +162,8 @@ function createServer(env: Env) {
         const result: any = await slackFetch(
           env.SLACK_USER_TOKEN || env.SLACK_BOT_TOKEN,
           "chat.postMessage",
-          params
+          params,
+          true
         );
 
         if (result.ok) {
