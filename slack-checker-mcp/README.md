@@ -5,6 +5,7 @@ A Cloudflare Worker that exposes an MCP server. The Grok Bot (and Tesla Grok) ca
 ## Features
 - Bearer token authentication (`MCP_API_KEY`)
 - Fetches recent DMs and @mentions of you
+- Can send replies or new messages as the bot, or as **you** if `SLACK_USER_TOKEN` is set (`send_slack_message`)
 - Returns a short, TTS-friendly summary
 - Runs entirely on Cloudflare Workers
 
@@ -19,8 +20,13 @@ A Cloudflare Worker that exposes an MCP server. The Grok Bot (and Tesla Grok) ca
    - `app_mentions:read`
    - `users:read`
    - `search:read`
-3. Install the app to your workspace and copy the **Bot User OAuth Token** (`xoxb-...`).
-4. Find your Slack user ID (click your profile → More → Copy member ID). It looks like `U01234567`.
+   - `chat:write`
+3. Add User Token Scopes (so messages can be sent as you):
+   - `chat:write`
+4. Install the app to your workspace.
+   - Copy the **Bot User OAuth Token** (`xoxb-...`)
+   - Also copy the **User OAuth Token** (`xoxp-...`) if you want replies to appear as you
+5. Find your Slack user ID (click your profile → More → Copy member ID). It looks like `U01234567`.
 
 ### 2. Deploy the Worker
 ```bash
@@ -29,6 +35,7 @@ npm install
 npx wrangler login
 npx wrangler secret put MCP_API_KEY          # generate a long random string, e.g. openssl rand -hex 32
 npx wrangler secret put SLACK_BOT_TOKEN      # paste your xoxb- token
+npx wrangler secret put SLACK_USER_TOKEN     # optional: paste your xoxp- token to reply as you
 npx wrangler secret put SLACK_USER_ID        # paste your U... user ID
 npx wrangler deploy
 ```

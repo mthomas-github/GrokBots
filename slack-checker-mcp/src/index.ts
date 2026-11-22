@@ -5,6 +5,7 @@ import { z } from "zod";
 interface Env {
   MCP_API_KEY: string;
   SLACK_BOT_TOKEN: string;
+  SLACK_USER_TOKEN?: string;  // optional: if set, messages are sent as you
   SLACK_USER_ID: string;
 }
 
@@ -75,7 +76,7 @@ function createServer(env: Env) {
             if (history.ok && history.messages) {
               for (const msg of history.messages.reverse()) {
                 if (msg.user && msg.user !== env.SLACK_USER_ID && msg.text) {
-                  messages.push(`DM from <@${msg.user}>: ${msg.text.slice(0, 200)}`);
+                  messages.push(`DM from <@${msg.user}> (channel ${channel.id}): ${msg.text.slice(0, 200)}`);
                 }
               }
             }
@@ -94,7 +95,8 @@ function createServer(env: Env) {
           for (const match of search.messages.matches.slice(0, limit)) {
             const text = match.text?.slice(0, 200) || "";
             const channel = match.channel?.name || "unknown";
-            messages.push(`Mention in #${channel}: ${text}`);
+            const channelId = match.channel?.id || "";
+            messages.push(`Mention in #${channel} (channel ${channelId}): ${text}`);
           }
         }
       } catch (err) {
@@ -123,6 +125,53 @@ function createServer(env: Env) {
           },
         ],
       };
+    }
+  );
+
+  server.registerTool(
+    "send_slack_message",
+    {
+      description:
+        "Send a reply or new message in Slack. Use the channel ID from get_recent_slack_messages when replying.",
+      inputSchema: z.object({
+        channel: z.string().describe("Channel or DM ID (e.g. D01234567 or C01234567)"),
+        text: z.string().describe("The message text to send"),
+        thread_ts: z.string().optional().describe("Optional thread timestamp to reply in a thread"),
+      }),
+    },
+    async ({ channel, text, thread_ts }) => {
+      try {
+        const params: Record<string, string> = {
+          channel,
+          text,
+        };
+        if (thread_ts) params.thread_ts = thread_ts;
+
+        const result: any = await slackFetch(
+          env.SLACK_USER_TOKEN || env.SLACK_BOT_TOKEN,
+          "chat.postMessage",
+          params
+        );
+
+        if (result.ok) {
+          return {
+            content: [{ type: "text", text: `Message sent successfully to channel ${channel}.` }],
+          };
+        } else {
+          return {
+            content: [{ type: "text", text: `Failed to send message: ${result.error || "unknown error"}` }],
+          };
+        }
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error sending Slack message: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
+        };
+      }
     }
   );
 
