@@ -172,7 +172,10 @@ function createServer(env: Env) {
           };
         } else {
           return {
-            content: [{ type: "text", text: `Failed to send message: ${result.error || "unknown error"}` }],
+            content: [{ 
+              type: "text", 
+              text: `Failed to send message: ${result.error || "unknown error"}\n\nFull response:\n${JSON.stringify(result, null, 2)}` 
+            }],
           };
         }
       } catch (err) {
